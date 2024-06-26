@@ -18,6 +18,7 @@
 #include "xt_base64.h"
 #include "xt_http.h"
 #include "xt_uri.h"
+#include "xt_list.h"
 
 #ifdef _WINDOWS
 #include <windows.h>
@@ -321,7 +322,7 @@ static void case_uri_encode(void)
 
 static void case_uri_decode(void)
 {
-    char out[32];
+    unsigned char out[1024];
     unsigned int out_len;
     CU_ASSERT(uri_decode(NULL, 80, out, &out_len) != 0);
     CU_ASSERT(uri_decode("123", 0, out, &out_len) != 0);
@@ -332,15 +333,53 @@ static void case_uri_decode(void)
     CU_ASSERT(uri_decode("123", 3, out, &out_len) == 0);
     CU_ASSERT(out_len == 3);
     CU_ASSERT_STRING_EQUAL(out, "123");
-    
-    MessageBoxA(NULL, "1111", "test4", MB_OK);
-    strcpy_s(out, 5, "1234567890");
-    MessageBoxA(NULL, out, "test3", MB_OK);
+
     out_len = sizeof(out);
-    MessageBoxA(NULL, out, "test1", MB_OK);
     CU_ASSERT(uri_decode("%E6%B5%8B%E8%AF%95", 18, out, &out_len) == 0);
-    MessageBoxA(NULL, out, "test2", MB_OK);
+    CU_ASSERT(out_len == 6);
     CU_ASSERT_STRING_EQUAL(out, "测试");
+
+    out_len = sizeof(out);
+    CU_ASSERT(uri_decode("%E6%B5%8B----------%E8%AF%95", 18, out, &out_len) == 0);
+    CU_ASSERT(out_len == 16);
+    CU_ASSERT_STRING_EQUAL(out, "测----------试");
+
+    out_len = sizeof(out);
+    CU_ASSERT(uri_decode("----%E6%B5%8B%E8%AF%95", 18, out, &out_len) == 0);
+    CU_ASSERT(out_len == 10);
+    CU_ASSERT_STRING_EQUAL(out, "----测试");
+
+    out_len = sizeof(out);
+    CU_ASSERT(uri_decode("%E6%B5%8B%E8%AF%95----", 18, out, &out_len) == 0);
+    CU_ASSERT(out_len == 10);
+    CU_ASSERT_STRING_EQUAL(out, "测试----");
+
+    out_len = sizeof(out);
+    CU_ASSERT(uri_decode("----%E6%B5%8B%E8%AF%95----", 18, out, &out_len) == 0);
+    CU_ASSERT(out_len == 14);
+    CU_ASSERT_STRING_EQUAL(out, "----测试----");
+
+    out_len = sizeof(out);
+    CU_ASSERT(uri_decode("----%E6%B5%8B%-%E8%AF%95----", 18, out, &out_len) == 0);
+    CU_ASSERT(out_len == 16);
+    CU_ASSERT_STRING_EQUAL(out, "----测%-试----");
+
+    out_len = sizeof(out);
+    CU_ASSERT(uri_decode("----%E6%B5%8B++++%E8%AF%95----", 18, out, &out_len) == 0);
+    CU_ASSERT(out_len == 18);
+    CU_ASSERT_STRING_EQUAL(out, "----测++++试----");
+
+    char *p = "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&tn=baidu&wd=%E4%BD%A0%E5%A5%BD&oq=strcpy_s&rsv_pq=fd454a1200143e5a&rsv_t=1cc8u%2BqQXUWLNbQHMsuruph7lbiAm7ymo2YA0R1zV4xZsaHPWjGnMGK4nlc&rqlang=cn&rsv_enter=0&rsv_dl=tb&rsv_btype=t&inputT=4637&rsv_sug3=47&rsv_sug1=43&rsv_sug7=101&rsv_sug2=0&rsv_sug4=4637";
+    out_len = sizeof(out);
+    CU_ASSERT(uri_decode(p, strlen(p), out, &out_len) == 0);
+    CU_ASSERT(out_len == 284);
+    CU_ASSERT_STRING_EQUAL(out, "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&tn=baidu&wd=你好&oq=strcpy_s&rsv_pq=fd454a1200143e5a&rsv_t=1cc8u+qQXUWLNbQHMsuruph7lbiAm7ymo2YA0R1zV4xZsaHPWjGnMGK4nlc&rqlang=cn&rsv_enter=0&rsv_dl=tb&rsv_btype=t&inputT=4637&rsv_sug3=47&rsv_sug1=43&rsv_sug7=101&rsv_sug2=0&rsv_sug4=4637");
+}
+
+static void case_list_init(void)
+{
+    CU_ASSERT(list_init(NULL) != 0);
+    CU_ASSERT(list_uninit(NULL) != 0);
 }
 
 static CU_TestInfo cases[] =
@@ -357,6 +396,7 @@ static CU_TestInfo cases[] =
     { "case_http_init",     case_http_init },
     { "case_uri_encode",    case_uri_encode },
     { "case_uri_decode",    case_uri_decode },
+    { "case_list_init",     case_list_init },
 	CU_TEST_INFO_NULL,
 };
 
